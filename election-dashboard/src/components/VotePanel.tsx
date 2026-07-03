@@ -7,6 +7,27 @@ import confetti from "canvas-confetti";
 import ColorDot from "@/components/ColorDot";
 import { getDeviceToken, setLocalVoteRecord } from "@/lib/fingerprint";
 import type { Region } from "@/lib/regions/index";
+import { Turnstile } from "@marsidev/react-turnstile";
+
+async function solvePoW(challenge: string, difficulty: number): Promise<number> {
+  const prefix = "0".repeat(difficulty);
+  let nonce = 0;
+  const encoder = new TextEncoder();
+  while (true) {
+    const data = encoder.encode(challenge + nonce.toString());
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (hashHex.startsWith(prefix)) {
+      return nonce;
+    }
+    nonce++;
+    if (nonce % 5000 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+}
+
 
 function CandidateAvatar({ name, color, photoUrl }: { name: string; color: string; photoUrl: string | null }) {
   const [imgError, setImgError] = useState(false);
@@ -66,6 +87,7 @@ export default function VotePanel({ provinceCode, candidates, pollId, provinceRe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const fireConfetti = useCallback((color: string) => {
     const colors = [color, "#ffffff", color];
@@ -88,16 +110,56 @@ export default function VotePanel({ provinceCode, candidates, pollId, provinceRe
     try {
       const deviceToken = await getDeviceToken();
 
+      let challenge = "";
+      let difficulty = 5;
+      let nonce: number | undefined;
+
+      try {
+        const challengeRes = await fetch("/api/pow-challenge");
+        if (!challengeRes.ok) {
+          throw new Error("Güvenlik kodu alınamadı.");
+        }
+        const challengeData = await challengeRes.json();
+        challenge = challengeData.challenge;
+        difficulty = challengeData.difficulty;
+      } catch (err) {
+        console.error("PoW challenge fetch error:", err);
+        setError("Güvenlik doğrulaması başlatılamadı. Lütfen tekrar deneyin.");
+        onRevertOptimistic?.();
+        setLoading(false);
+        return;
+      }
+
+      if (challenge) {
+        nonce = await solvePoW(challenge, difficulty);
+      }
+
+      const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+      if (siteKey && !turnstileToken) {
+        setError("Lütfen robot doğrulaması kutucuğunu işaretleyin.");
+        onRevertOptimistic?.();
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/vote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidate_id: candidateId, province_code: provinceCode, poll_id: pollId, device_token: deviceToken }),
+        body: JSON.stringify({
+          candidate_id: candidateId,
+          province_code: provinceCode,
+          poll_id: pollId,
+          device_token: deviceToken,
+          pow_challenge: challenge,
+          pow_nonce: nonce,
+          turnstile_token: turnstileToken || "skipped",
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error);
+        setError(data.error || "Oy verme başarısız.");
         onRevertOptimistic?.();
         return;
       }
@@ -235,6 +297,18 @@ export default function VotePanel({ provinceCode, candidates, pollId, provinceRe
                       })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Turnstile Widget */}
+            {!hasVoted && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+              <div className="mb-4 flex justify-center scale-90 sm:scale-100">
+                <Turnstile
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => setError("Turnstile doğrulaması başlatılamadı.")}
+                  onExpire={() => setTurnstileToken(null)}
+                />
               </div>
             )}
 

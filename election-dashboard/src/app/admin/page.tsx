@@ -379,7 +379,6 @@ function PollDetailDashboard({ pollDetail, poll, regionCache }: {
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
-  const [adminKey, setAdminKey] = useState("");
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -414,21 +413,50 @@ export default function AdminPage() {
   }
 
   const fetchAdmin = useCallback(async () => {
-    if (!adminKey) return;
     try {
-      const res = await fetch("/api/admin", { headers: { "x-admin-key": adminKey } });
+      const res = await fetch("/api/admin");
       if (res.ok) {
         setData(await res.json());
-      } else {
-        setMsg({ text: "Şifre hatalı.", type: "error" });
+        setAuthenticated(true);
+      } else if (res.status === 401) {
         setAuthenticated(false);
       }
     } catch {}
-  }, [adminKey]);
+  }, []);
+
+  async function handleLogin() {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setMsg({ text: d.error || "Şifre hatalı.", type: "error" });
+        setAuthenticated(false);
+      } else {
+        setAuthenticated(true);
+        fetchAdmin();
+      }
+    } catch {
+      setMsg({ text: "Bağlantı hatası.", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchAdmin();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchAdmin]);
 
   useEffect(() => {
     if (!authenticated) return;
-    fetchAdmin();
     const id = setInterval(fetchAdmin, 2500);
     return () => clearInterval(id);
   }, [authenticated, fetchAdmin]);
@@ -436,7 +464,12 @@ export default function AdminPage() {
   const activeCountry = data?.activePoll?.country || "tr";
   useEffect(() => {
     if (!data) return;
-    if (!regionCache[activeCountry]) loadRegions(activeCountry);
+    if (!regionCache[activeCountry]) {
+      const id = setTimeout(() => {
+        loadRegions(activeCountry);
+      }, 0);
+      return () => clearTimeout(id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCountry]);
 
@@ -446,7 +479,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const d = await res.json();
@@ -497,7 +530,7 @@ export default function AdminPage() {
     try {
       const poll = data?.polls.find((p) => p.id === pollId);
       if (poll) await loadRegions(poll.country || "tr");
-      const res = await fetch(`/api/admin/poll-detail?poll_id=${pollId}`, { headers: { "x-admin-key": adminKey } });
+      const res = await fetch(`/api/admin/poll-detail?poll_id=${pollId}`);
       if (res.ok) {
         setPollDetail(await res.json());
       }
@@ -528,17 +561,18 @@ export default function AdminPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { setAdminKey(password); setAuthenticated(true); }}}
+            onKeyDown={(e) => { if (e.key === "Enter") { handleLogin(); }}}
             placeholder="Admin PIN"
             className="w-full rounded-lg px-4 py-3 mb-4 focus:outline-none text-sm"
             style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}
           />
           <button
-            onClick={() => { setAdminKey(password); setAuthenticated(true); }}
-            className="w-full py-3 rounded-xl font-semibold text-sm transition-colors"
+            onClick={handleLogin}
+            disabled={loading}
+            className="w-full py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
             style={{ background: "var(--text-primary)", color: "var(--bg-base)" }}
           >
-            Giriş
+            {loading ? "Giriş Yapılıyor..." : "Giriş"}
           </button>
         </motion.div>
       </div>

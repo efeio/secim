@@ -17,10 +17,14 @@ import { checkRateLimit } from "@/lib/ratelimit";
 import { hashIP } from "@/lib/election";
 import { logAudit, getAuditLogs } from "@/lib/audit";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PIN || "admin2026";
+import { checkAdminAuth } from "@/lib/adminAuth";
+
+if (process.env.NODE_ENV === "production" && !process.env.ADMIN_PIN) {
+  throw new Error("CRITICAL CONFIGURATION ERROR: ADMIN_PIN environment variable is not defined in production!");
+}
 
 function checkAuth(request: NextRequest): boolean {
-  return request.headers.get("x-admin-key") === ADMIN_PASSWORD;
+  return checkAdminAuth(request);
 }
 
 export async function GET(request: NextRequest) {
@@ -28,20 +32,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Yetkisiz." }, { status: 401 });
   }
 
-  const polls = getAllPolls();
-  const activePoll = getActivePoll();
+  const polls = await getAllPolls();
+  const activePoll = await getActivePoll();
 
   let activeAnalytics = null;
   if (activePoll) {
     activeAnalytics = {
-      candidateResults: getCandidateResults(activePoll.id),
-      provinceResults: getProvinceResults(activePoll.id),
-      irregularities: getIrregularities(activePoll.id),
-      totalVotes: getTotalVotes(activePoll.id),
+      candidateResults: await getCandidateResults(activePoll.id),
+      provinceResults: await getProvinceResults(activePoll.id),
+      irregularities: await getIrregularities(activePoll.id),
+      totalVotes: await getTotalVotes(activePoll.id),
     };
   }
 
-  const auditLogs = getAuditLogs(100);
+  const auditLogs = await getAuditLogs(100);
 
   return NextResponse.json({ polls, activePoll, activeAnalytics, connections: eventBus.connectionCount, auditLogs });
 }
@@ -75,33 +79,33 @@ export async function POST(request: NextRequest) {
 
   switch (data.action) {
     case "create_poll": {
-      const poll = createPoll(data.title.trim(), data.candidates.map((c: { name: string; color: string; color2?: string; photo_url?: string }) => ({
+      const poll = await createPoll(data.title.trim(), data.candidates.map((c: { name: string; color: string; color2?: string; photo_url?: string }) => ({
         name: c.name.trim(),
         color: c.color,
         color2: c.color2 || undefined,
         photo_url: c.photo_url || undefined,
       })), data.country || "tr");
-      logAudit("poll_created", "admin", { poll_id: poll.id, title: data.title, country: data.country });
+      await logAudit("poll_created", "admin", { poll_id: poll.id, title: data.title, country: data.country });
       return NextResponse.json({ success: true, poll });
     }
 
     case "start_poll": {
-      startPoll(data.poll_id);
-      logAudit("poll_started", "admin", { poll_id: data.poll_id });
+      await startPoll(data.poll_id);
+      await logAudit("poll_started", "admin", { poll_id: data.poll_id });
       eventBus.emit({ type: "poll_changed", action: "started", poll_id: data.poll_id });
       return NextResponse.json({ success: true });
     }
 
     case "end_poll": {
-      endPoll(data.poll_id);
-      logAudit("poll_ended", "admin", { poll_id: data.poll_id });
+      await endPoll(data.poll_id);
+      await logAudit("poll_ended", "admin", { poll_id: data.poll_id });
       eventBus.emit({ type: "poll_changed", action: "ended", poll_id: data.poll_id, status: "ended" });
       return NextResponse.json({ success: true });
     }
 
     case "delete_poll": {
-      deletePoll(data.poll_id);
-      logAudit("poll_deleted", "admin", { poll_id: data.poll_id });
+      await deletePoll(data.poll_id);
+      await logAudit("poll_deleted", "admin", { poll_id: data.poll_id });
       eventBus.emit({ type: "poll_changed", action: "deleted", poll_id: data.poll_id });
       return NextResponse.json({ success: true });
     }

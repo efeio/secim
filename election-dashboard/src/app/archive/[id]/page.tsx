@@ -82,8 +82,10 @@ export default function ArchiveDetailPage() {
     if (!data?.poll?.country) return;
     const country = data.poll.country;
     if (country === "tr") {
-      setRegions(provinces);
-      setMapData(null);
+      setTimeout(() => {
+        setRegions(provinces);
+        setMapData(null);
+      }, 0);
       return;
     }
     import(`@/lib/regions/${country}.ts`).then((mod) => {

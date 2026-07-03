@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const polls = getEndedPolls();
+    const polls = await getEndedPolls();
     return NextResponse.json({ polls });
   } catch (error) {
     console.error("Archive fetch error:", error);

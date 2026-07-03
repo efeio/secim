@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PollStatus {
+  draft
+  active
+  ended
+}
+
+model Poll {
+  id         String      @id @default(uuid())
+  title      String
+  country    String      @default("tr")
+  status     PollStatus  @default(draft)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  endedAt    DateTime?   @map("ended_at")
+  candidates Candidate[]
+  votes      Vote[]
+
+  @@index([status])
+  @@map("polls")
+}
+
+model Candidate {
+  id       String  @id @default(uuid())
+  pollId   String  @map("poll_id")
+  name     String
+  color    String  @default("#888888")
+  color2   String?
+  photoUrl String? @map("photo_url")
+  poll     Poll    @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+
+  @@index([pollId])
+  @@map("candidates")
+}
+
+model Vote {
+  id           String    @id @default(uuid())
+  pollId       String    @map("poll_id")
+  candidateId  String    @map("candidate_id")
+  provinceCode String    @map("province_code")
+  deviceToken  String    @map("device_token")
+  ipHash       String    @map("ip_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  poll         Poll      @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  candidate    Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, deviceToken])
+  @@unique([pollId, ipHash])
+  @@index([pollId, provinceCode])
+  @@index([pollId, candidateId])
+  @@index([createdAt(sort: Desc)])
+  @@map("votes")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  actor     String?
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

@@ -19,16 +19,23 @@ export function useSSE({ url, onMessage, onReconnect }: UseSSEOptions) {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onMessageRef = useRef(onMessage);
   const onReconnectRef = useRef(onReconnect);
+  const connectRef = useRef<() => void>(() => {});
 
-  onMessageRef.current = onMessage;
-  onReconnectRef.current = onReconnect;
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onReconnectRef.current = onReconnect;
+  });
 
   const connect = useCallback(() => {
     if (esRef.current) {
       esRef.current.close();
     }
 
-    setConnectionState("connecting");
+    // Defer state update to avoid synchronous setState inside mount effect
+    setTimeout(() => {
+      setConnectionState("connecting");
+    }, 0);
+
     const es = new EventSource(url);
     esRef.current = es;
 
@@ -69,13 +76,17 @@ export function useSSE({ url, onMessage, onReconnect }: UseSSEOptions) {
 
         retryTimeoutRef.current = setTimeout(() => {
           onReconnectRef.current?.();
-          connect();
+          connectRef.current();
         }, delay);
 
         return next;
       });
     };
   }, [url]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     connect();

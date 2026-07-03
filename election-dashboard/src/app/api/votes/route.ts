@@ -8,12 +8,12 @@ export async function GET(request: NextRequest) {
     const pollId = request.nextUrl.searchParams.get("poll_id");
 
     if (pollId) {
-      const poll = getPollById(pollId);
+      const poll = await getPollById(pollId);
       if (!poll) return NextResponse.json({ error: "Oylama bulunamadı." }, { status: 404 });
 
-      const candidateResults = getCandidateResults(poll.id);
-      const provinceResults = getProvinceResults(poll.id);
-      const totalVotes = getTotalVotes(poll.id);
+      const candidateResults = await getCandidateResults(poll.id);
+      const provinceResults = await getProvinceResults(poll.id);
+      const totalVotes = await getTotalVotes(poll.id);
 
       return NextResponse.json({
         active: poll.status === "active",
@@ -24,14 +24,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const activePoll = getActivePoll();
+    const activePoll = await getActivePoll();
     if (!activePoll) {
       return NextResponse.json({ active: false, poll: null });
     }
 
-    const candidateResults = getCandidateResults(activePoll.id);
-    const provinceResults = getProvinceResults(activePoll.id);
-    const totalVotes = getTotalVotes(activePoll.id);
+    const candidateResults = await getCandidateResults(activePoll.id);
+    const provinceResults = await getProvinceResults(activePoll.id);
+    const totalVotes = await getTotalVotes(activePoll.id);
 
     return NextResponse.json({
       active: true,

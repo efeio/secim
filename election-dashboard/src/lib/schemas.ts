@@ -1,13 +1,15 @@
 import { z } from "zod";
 
+const isAntibotSkipped = process.env.SKIP_ANTIBOT_CHECKS === "true" && process.env.NODE_ENV !== "production";
+
 export const VoteRequestSchema = z.object({
   candidate_id: z.string().min(1),
   province_code: z.string().min(1),
   poll_id: z.string().min(1),
   device_token: z.string().min(8).max(64),
-  turnstile_token: z.string().optional(),
-  pow_challenge: z.string().optional(),
-  pow_nonce: z.number().int().optional(),
+  turnstile_token: isAntibotSkipped ? z.string().optional() : z.string().min(1),
+  pow_challenge: isAntibotSkipped ? z.string().optional() : z.string().min(1),
+  pow_nonce: isAntibotSkipped ? z.number().int().optional() : z.number().int(),
 });
 
 export const AdminCreatePollSchema = z.object({

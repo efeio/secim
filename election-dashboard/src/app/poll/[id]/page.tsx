@@ -136,7 +136,6 @@ export default function PollDetailPage() {
   const [nextRetryIn, setNextRetryIn] = useState(0);
 
   const fetchDataRef = useRef(fetchData);
-  fetchDataRef.current = fetchData;
   const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef(false);
   const throttledFetchRef = useRef(() => {});
@@ -155,9 +154,17 @@ export default function PollDetailPage() {
       }
     }, 2000);
   }, []);
-  throttledFetchRef.current = throttledFetch;
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+    throttledFetchRef.current = throttledFetch;
+  });
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchData]);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -295,7 +302,11 @@ export default function PollDetailPage() {
   }, [data, optimisticVote]);
 
   const prevResultsRef = useRef<CandidateResult[]>([]);
-  const lastUpdateTimeRef = useRef<number>(Date.now());
+  const lastUpdateTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    lastUpdateTimeRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     if (!data) return;
@@ -350,14 +361,14 @@ export default function PollDetailPage() {
   const countryInfo = useMemo(() => {
     if (!data?.poll?.country) return null;
     return supportedCountries.find((c) => c.code === data.poll!.country) || { name: data.poll.country, flag: "🌐", regionLabel: "Region", code: data.poll.country };
-  }, [data?.poll?.country]);
+  }, [data]);
 
   const effectiveRegions: Region[] = useMemo(() => {
     if (data?.poll?.country === "tr") {
       return provinces.map((p) => ({ code: p.code, name: p.name, plate: p.plate }));
     }
     return regions;
-  }, [data?.poll?.country, regions]);
+  }, [data, regions]);
 
   const regionMap = useMemo(() => new Map(effectiveRegions.map((r) => [r.code, r])), [effectiveRegions]);
 

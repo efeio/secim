@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCandidateResults, getProvinceResults, getIrregularities, getTotalVotes } from "@/lib/election";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PIN || "admin2026";
+import { checkAdminAuth } from "@/lib/adminAuth";
+
+if (process.env.NODE_ENV === "production" && !process.env.ADMIN_PIN) {
+  throw new Error("CRITICAL CONFIGURATION ERROR: ADMIN_PIN environment variable is not defined in production!");
+}
 
 function checkAuth(request: NextRequest): boolean {
-  return request.headers.get("x-admin-key") === ADMIN_PASSWORD;
+  return checkAdminAuth(request);
 }
 
 export async function GET(request: NextRequest) {
@@ -17,10 +21,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "poll_id gerekli." }, { status: 400 });
   }
 
-  const candidateResults = getCandidateResults(pollId);
-  const provinceResults = getProvinceResults(pollId);
-  const irregularities = getIrregularities(pollId);
-  const totalVotes = getTotalVotes(pollId);
+  const candidateResults = await getCandidateResults(pollId);
+  const provinceResults = await getProvinceResults(pollId);
+  const irregularities = await getIrregularities(pollId);
+  const totalVotes = await getTotalVotes(pollId);
 
   return NextResponse.json({
     candidateResults,
