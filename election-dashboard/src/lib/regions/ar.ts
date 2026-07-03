@@ -1,0 +1,28 @@
+import type { Region } from "./index";
+
+export const regions: Region[] = [
+  { code: "ara", name: "Salta", plate: 1 },
+  { code: "arb", name: "Buenos Aires", plate: 2 },
+  { code: "arc", name: "Ciudad de Buenos Aires", plate: 3 },
+  { code: "ard", name: "San Luis", plate: 4 },
+  { code: "are", name: "Entre Ríos", plate: 5 },
+  { code: "arf", name: "La Rioja", plate: 6 },
+  { code: "arg", name: "Santiago del Estero", plate: 7 },
+  { code: "arh", name: "Chaco", plate: 8 },
+  { code: "arj", name: "San Juan", plate: 9 },
+  { code: "ark", name: "Catamarca", plate: 10 },
+  { code: "arl", name: "La Pampa", plate: 11 },
+  { code: "arm", name: "Mendoza", plate: 12 },
+  { code: "arn", name: "Misiones", plate: 13 },
+  { code: "arp", name: "Formosa", plate: 14 },
+  { code: "arq", name: "Neuquén", plate: 15 },
+  { code: "arr", name: "Río Negro", plate: 16 },
+  { code: "ars", name: "Santa Fe", plate: 17 },
+  { code: "art", name: "Tucumán", plate: 18 },
+  { code: "aru", name: "Chubut", plate: 19 },
+  { code: "arv", name: "Tierra del Fuego", plate: 20 },
+  { code: "arw", name: "Corrientes", plate: 21 },
+  { code: "arx", name: "Córdoba", plate: 22 },
+  { code: "ary", name: "Jujuy", plate: 23 },
+  { code: "arz", name: "Santa Cruz", plate: 24 },
+];

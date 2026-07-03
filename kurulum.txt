@@ -1,0 +1,13 @@
+
+  Terminal 1 — Next.js server:
+  cd ~/Desktop/seçim/election-dashboard && npm run dev -- --hostname 0.0.0.0
+
+  Terminal 2 — Cloudflare Tunnel:
+  cloudflared tunnel --url http://localhost:3000
+
+  İkincisi sana yeni bir https://xxx.trycloudflare.com linki verecek — o linkle her yerden erişirsin.
+
+  Şu an ikisi de çalışıyor, dokunma. Telefondan şu linki aç:
+
+  https://instruments-red-philip-writing.trycloudflare.com/spam
+  
