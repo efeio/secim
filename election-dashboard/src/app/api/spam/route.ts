@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
 
     const { eventBus } = await import("@/lib/events");
     const poll = await getPollById(poll_id);
-    const candidate = poll?.candidates.find((c) => c.id === candidate_id);
+    const candidate = poll?.candidates.find(
+      (c: { id: string; name: string; color: string }) => c.id === candidate_id
+    );
 
     eventBus.emit({
       type: "new_vote",
